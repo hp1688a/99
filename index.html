@@ -250,7 +250,7 @@
       100% { transform: scale(2.2) rotate(360deg); opacity: 0; }
     }
 
-    /* 😈 答錯哈哈大笑搖擺動畫 */
+    /* 😈 答錯搖擺動畫 */
     .demon-laugh {
       animation: laughAnim 0.12s infinite alternate ease-in-out;
     }
@@ -403,16 +403,6 @@
     .rank-1 { color: #e1b12c; font-weight: bold; font-size: 15px; }
     .rank-2 { color: #636e72; font-weight: bold; font-size: 14px; }
     .rank-3 { color: #d63031; font-weight: bold; font-size: 14px; }
-    .clear-board-btn {
-      background: #b2bec3;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 12px;
-      cursor: pointer;
-      float: right;
-    }
   </style>
 </head>
 <body>
@@ -569,11 +559,43 @@
 
     <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
       <button class="story-btn" style="flex:none; padding:10px 20px; font-size:16px;" onclick="closeLeaderboard()">◀ Back</button>
-      <button class="clear-board-btn" id="clear-board-btn" style="display: none;" onclick="clearLeaderboard()">🗑️ Clear</button>
     </div>
   </div>
 
 </div>
+
+<!-- 🔥 Firebase SDK & Firestore 初始化 Module -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    getDocs, 
+    query, 
+    orderBy, 
+    limit,
+    deleteDoc,
+    doc
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCAsE7j45yh63OKJNhaI5uUy4fOxc27_nk",
+    authDomain: "math-game-leaderboard-831f0.firebaseapp.com",
+    projectId: "math-game-leaderboard-831f0",
+    storageBucket: "math-game-leaderboard-831f0.firebasestorage.app",
+    messagingSenderId: "5952882048",
+    appId: "1:5952882048:web:169a1782e3abb29319ad65",
+    measurementId: "G-ZP6Z3NCPXR"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // 掛載至全域 window 物件
+  window.db = db;
+  window.fsMethods = { collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, doc };
+</script>
 
 <script>
   const TOTAL_QUESTIONS = 25;
@@ -656,8 +678,45 @@
     document.getElementById(`story-page-${page}`).style.display = 'block';
   }
 
+  /* 🔥 清空 Firestore 排行榜所有資料 */
+  async function clearLeaderboard() {
+    if (!confirm("⚠️ 確定要清空全網所有排行榜資料嗎？此操作無法復原！")) {
+      return;
+    }
+
+    try {
+      if (!window.db || !window.fsMethods) {
+        alert("資料庫連線失敗，無法進行清空操作。");
+        return;
+      }
+
+      const { collection, getDocs, deleteDoc, doc } = window.fsMethods;
+      const querySnapshot = await getDocs(collection(window.db, "leaderboard"));
+
+      const deletePromises = [];
+      querySnapshot.forEach((docSnapshot) => {
+        deletePromises.push(deleteDoc(doc(window.db, "leaderboard", docSnapshot.id)));
+      });
+
+      await Promise.all(deletePromises);
+      alert("⚡ 排行榜已成功清空！");
+
+      document.getElementById('player-name').value = "Brave Knight";
+    } catch (e) {
+      console.error("清空排行榜失敗：", e);
+      alert("清空失敗，請檢查權限設定或網路連線。");
+    }
+  }
+
   function startGame() {
     const inputVal = document.getElementById('player-name').value.trim();
+
+    // 檢查管理員指令
+    if (inputVal === "administrator") {
+      clearLeaderboard();
+      return;
+    }
+
     playerName = inputVal !== "" ? inputVal : "Brave Knight";
     document.getElementById('display-hero-name').innerText = playerName;
 
@@ -911,7 +970,7 @@
     } else {
       if (demonBox) {
         demonBox.className = 'demon-box demon-laugh';
-        demonBox.innerHTML = '👿<span style="font-size: 18px; margin: 0 1px; vertical-align: middle; color: #8e44ad; font-weight: bold;">HAHA!</span><span style="color:#d63031; font-size: 28px; vertical-align: middle;">❌</span>';
+        demonBox.innerHTML = '👿<span style="font-size: 18px; margin: 0 1px; vertical-align: middle; color: #8e44ad; font-weight: bold;">Oops!</span><span style="color:#d63031; font-size: 28px; vertical-align: middle;">❌</span>';
       }
 
       errors++;
@@ -1064,60 +1123,82 @@
     document.getElementById('end-result-screen').style.display = 'block';
   }
 
-  function getLeaderboardData() {
-    const data = localStorage.getItem('math_game_leaderboard');
-    return data ? JSON.parse(data) : [];
-  }
-
-  function saveScoreToLeaderboard(name, total, base, bonus, hpBonus = 0) {
-    let board = getLeaderboardData();
+  /* 🔥 儲存成績至 Firebase Firestore */
+  async function saveScoreToLeaderboard(name, total, base, bonus, hpBonus = 0) {
     const today = new Date();
     const dateStr = `${today.getMonth() + 1}/${today.getDate()} ${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
 
-    board.push({
+    const data = {
       name: name,
       totalScore: total,
       baseScore: base,
       bonusScore: bonus,
       hpBonus: hpBonus,
-      date: dateStr
-    });
+      date: dateStr,
+      createdAt: Date.now()
+    };
 
-    board.sort((a, b) => b.totalScore - a.totalScore);
-    board = board.slice(0, 10);
-
-    localStorage.setItem('math_game_leaderboard', JSON.stringify(board));
+    try {
+      if (window.db && window.fsMethods) {
+        const { collection, addDoc } = window.fsMethods;
+        await addDoc(collection(window.db, "leaderboard"), data);
+        console.log("成績已成功上傳至 Firestore 雲端！");
+      } else {
+        console.warn("Firestore 未成功初始化");
+      }
+    } catch (e) {
+      console.error("上傳成績失敗：", e);
+    }
   }
 
-  function renderLeaderboard() {
-    const board = getLeaderboardData();
+  /* 🔥 從 Firebase Firestore 載入前 10 名排行榜 */
+  async function renderLeaderboard() {
     const tbody = document.getElementById('leaderboard-body');
-    tbody.innerHTML = '';
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:20px; color:#666;">載入雲端排行榜中...</td></tr>';
 
-    if (board.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" style="color:#999; padding:20px 0;">No records yet. Take the challenge!</td></tr>`;
-      return;
+    try {
+      if (!window.db || !window.fsMethods) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color:red; padding:20px;">資料庫連線失敗，請稍後再試。</td></tr>';
+        return;
+      }
+
+      const { collection, getDocs, query, orderBy, limit } = window.fsMethods;
+      const q = query(collection(window.db, "leaderboard"), orderBy("totalScore", "desc"), limit(10));
+      const querySnapshot = await getDocs(q);
+
+      tbody.innerHTML = '';
+
+      if (querySnapshot.empty) {
+        tbody.innerHTML = `<tr><td colspan="5" style="color:#999; padding:20px 0;">目前還沒有紀錄，快來搶第一名！</td></tr>`;
+        return;
+      }
+
+      let index = 0;
+      querySnapshot.forEach((doc) => {
+        const item = doc.data();
+        let rankText = index + 1;
+        let rankClass = '';
+        if (index === 0) { rankText = '🥇 1'; rankClass = 'rank-1'; }
+        else if (index === 1) { rankText = '🥈 2'; rankClass = 'rank-2'; }
+        else if (index === 2) { rankText = '🥉 3'; rankClass = 'rank-3'; }
+
+        const hpVal = item.hpBonus !== undefined ? item.hpBonus : 0;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="${rankClass}">${rankText}</td>
+          <td style="font-weight:bold;">${item.name}</td>
+          <td style="color:#d63031; font-weight:bold;">${item.totalScore}</td>
+          <td>${item.baseScore} / +${item.bonusScore} / +${hpVal}</td>
+          <td style="font-size:11px; color:#636e72;">${item.date}</td>
+        `;
+        tbody.appendChild(row);
+        index++;
+      });
+    } catch (e) {
+      console.error("載入排行榜失敗：", e);
+      tbody.innerHTML = '<tr><td colspan="5" style="color:red; padding:20px;">載入排行榜失敗，請稍後再試。</td></tr>';
     }
-
-    board.forEach((item, index) => {
-      let rankText = index + 1;
-      let rankClass = '';
-      if (index === 0) { rankText = '🥇 1'; rankClass = 'rank-1'; }
-      else if (index === 1) { rankText = '🥈 2'; rankClass = 'rank-2'; }
-      else if (index === 2) { rankText = '🥉 3'; rankClass = 'rank-3'; }
-
-      const hpVal = item.hpBonus !== undefined ? item.hpBonus : 0;
-
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td class="${rankClass}">${rankText}</td>
-        <td style="font-weight:bold;">${item.name}</td>
-        <td style="color:#d63031; font-weight:bold;">${item.totalScore}</td>
-        <td>${item.baseScore} / +${item.bonusScore} / +${hpVal}</td>
-        <td style="font-size:11px; color:#636e72;">${item.date}</td>
-      `;
-      tbody.appendChild(row);
-    });
   }
 
   function showLeaderboard() {
@@ -1134,12 +1215,6 @@
     document.getElementById('review-screen').style.display = 'none';
     document.getElementById('end-result-screen').style.display = 'none';
 
-    const currentName = document.getElementById('player-name')?.value.trim() || playerName;
-    const clearBtn = document.getElementById('clear-board-btn');
-    if (clearBtn) {
-      clearBtn.style.display = (currentName.toLowerCase() === 'administrator') ? 'inline-block' : 'none';
-    }
-
     renderLeaderboard();
     document.getElementById('leaderboard-screen').style.display = 'block';
   }
@@ -1150,13 +1225,6 @@
 
     if (previousScreen === 'game-screen' && !isAnswered && qNum <= TOTAL_QUESTIONS && errors < MAX_ERRORS) {
       startTimer();
-    }
-  }
-
-  function clearLeaderboard() {
-    if (confirm("Are you sure you want to clear the leaderboard?")) {
-      localStorage.removeItem('math_game_leaderboard');
-      renderLeaderboard();
     }
   }
 
