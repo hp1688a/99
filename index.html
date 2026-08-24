@@ -275,28 +275,28 @@
       transform: scaleY(1.1);
     }
 
-    /* Keypad */
+    /* Keypad (調整高度與間距) */
     .keypad {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 5px;
-      margin-top: 5px;
+      gap: 8px;
+      margin-top: 8px;
     }
     .btn-key {
       background: #74b9ff;
       color: white;
       border: none;
-      padding: 6px 0;
-      font-size: 22px;
+      padding: 12px 0;
+      font-size: 24px;
       font-weight: bold;
-      border-radius: 10px;
+      border-radius: 12px;
       cursor: pointer;
-      box-shadow: 0 3px 0 #0984e3;
+      box-shadow: 0 4px 0 #0984e3;
       transition: transform 0.1s;
     }
     .btn-key:active { transform: translateY(2px); box-shadow: none; }
-    .btn-backspace { background: #ff7675; box-shadow: 0 3px 0 #d63031; font-size: 13px; }
-    .btn-submit { background: #00b894; box-shadow: 0 3px 0 #00b894; grid-column: span 3; margin-top: 2px; font-size: 16px; padding: 7px 0; }
+    .btn-backspace { background: #ff7675; box-shadow: 0 4px 0 #d63031; font-size: 14px; }
+    .btn-submit { background: #00b894; box-shadow: 0 4px 0 #009475; grid-column: span 3; font-size: 18px; padding: 12px 0; }
     
     .feedback {
       min-height: 48px;
