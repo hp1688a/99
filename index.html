@@ -55,7 +55,7 @@
       font-size: 14px;
       font-weight: bold;
       color: #2d3436;
-      text-align: left; /* 標籤靠左對齊 */
+      text-align: left;
     }
     .name-input-group input {
       width: 90%;
@@ -66,7 +66,7 @@
       outline: none;
       font-weight: bold;
       color: #2d3436;
-      text-align: left; /* 輸入框文字靠左對齊 */
+      text-align: left;
       transition: border-color 0.2s;
     }
     .name-input-group input:focus {
@@ -432,13 +432,31 @@
 
     /* Leaderboard Screen */
     .leaderboard-container { text-align: left; }
+    .leaderboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
     .leaderboard-title {
       font-size: 18px;
       color: #d63031;
       font-weight: bold;
-      text-align: center;
-      margin-bottom: 10px;
+      margin: 0;
     }
+    .clear-board-btn {
+      background: #d63031;
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 2px 0 #b22222;
+    }
+    .clear-board-btn:active { transform: translateY(1px); box-shadow: none; }
+
     .leaderboard-table {
       width: 100%;
       border-collapse: collapse;
@@ -596,7 +614,10 @@
 
   <!-- 🏆 Leaderboard Screen -->
   <div id="leaderboard-screen" class="leaderboard-container" style="display: none;">
-    <div class="leaderboard-title">🏆 Hero Hall of Fame</div>
+    <div class="leaderboard-header">
+      <div class="leaderboard-title">🏆 Hero Hall of Fame</div>
+      <button id="admin-clear-btn" class="clear-board-btn" style="display:none;" onclick="clearLeaderboard()">🗑️ Clear All</button>
+    </div>
     <table class="leaderboard-table">
       <thead>
         <tr>
@@ -674,6 +695,7 @@
   let userCredentials = []; 
   let matchedUser = null; 
   let playerName = "Brave Knight";
+  let isAdmin = false; 
   let score = 0;        
   let bonusScore = 0;   
   let qNum = 1;
@@ -720,35 +742,46 @@
     playBgm('01.mp3');
   });
 
-  // 按下「Start Quest ⚔️」按鈕時：比對英文姓名（忽略大小寫與連續空格），一致即可進入遊戲
+  // 按下「Start Quest ⚔️」按鈕時：比對英文姓名（忽略大小寫與連續空格），或允許 administrator 進入遊戲
   async function handleChallengeClick() {
     const inputEl = document.getElementById('hero-name-input');
-    // 去除前後與中間多餘空格，並轉為小寫
     const nameInput = inputEl.value.trim().replace(/\s+/g, ' ');
 
     if (!nameInput) return;
+
+    // 特殊檢查：如果直接輸入 administrator
+    if (nameInput.toLowerCase() === 'administrator') {
+      isAdmin = true;
+      playerName = 'administrator';
+      document.getElementById('display-hero-name').innerText = playerName;
+      startGame();
+      return;
+    }
 
     if (userCredentials.length === 0) {
       await loadCredentials();
     }
 
-    if (userCredentials.length === 0) return;
-
-    // 不區分大小寫比對姓名 (比對 Name / Account / Username / 英文姓名 / 姓名)
+    // 不區分大小寫比對姓名
     matchedUser = userCredentials.find(row => {
       const acc = String(row['Name'] || row['Account'] || row['Username'] || row['英文姓名'] || row['姓名'] || '').trim().replace(/\s+/g, ' ');
       return acc.toLowerCase() === nameInput.toLowerCase();
     });
 
-    // 若姓名不符，清空輸入框並在輸入框中顯示 Non-LUYA students
     if (!matchedUser) {
       inputEl.value = '';
       inputEl.placeholder = 'Non-LUYA students';
       return;
     }
 
-    // 姓名配對成功，直接進入遊戲
+    // 判斷是否為管理者
     playerName = String(matchedUser['Name'] || matchedUser['Account'] || matchedUser['英文姓名'] || nameInput).trim();
+    if (playerName.toLowerCase() === 'administrator') {
+      isAdmin = true;
+    } else {
+      isAdmin = false;
+    }
+
     document.getElementById('display-hero-name').innerText = playerName;
     startGame();
   }
@@ -1383,6 +1416,12 @@
     document.getElementById('review-screen').style.display = 'none';
     document.getElementById('end-result-screen').style.display = 'none';
 
+    // 依據是否為 administrator 顯示/隱藏清空按鈕
+    const clearBtn = document.getElementById('admin-clear-btn');
+    if (clearBtn) {
+      clearBtn.style.display = isAdmin ? 'inline-block' : 'none';
+    }
+
     renderLeaderboard(isFromReviewFlow);
 
     const btnContainer = document.getElementById('leaderboard-bottom-btns');
@@ -1393,6 +1432,27 @@
     }
 
     document.getElementById('leaderboard-screen').style.display = 'block';
+  }
+
+  // 管理員專用：清空排行榜
+  async function clearLeaderboard() {
+    if (!isAdmin) return;
+    if (!confirm("確定要清空排行榜上的所有紀錄嗎？此動作無法復原！")) return;
+
+    try {
+      const { collection, getDocs, deleteDoc, doc } = window.fsMethods;
+      const snapshot = await getDocs(collection(window.db, "leaderboard"));
+      const deletePromises = [];
+      snapshot.forEach((docSnap) => {
+        deletePromises.push(deleteDoc(doc(window.db, "leaderboard", docSnap.id)));
+      });
+      await Promise.all(deletePromises);
+      alert("排行榜已成功清空！");
+      renderLeaderboard();
+    } catch (e) {
+      console.error("清空排行榜失敗：", e);
+      alert("清空排行榜失敗，請檢查權限或網路連線。");
+    }
   }
 
   function closeLeaderboard() {
