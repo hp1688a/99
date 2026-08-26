@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Multiplication Adventure ⚔️🏰 v1.0 Beta</title>
+  <!-- 引入 SheetJS 讀取 Excel 檔案 -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -40,6 +42,37 @@
     }
     .brand-luya { font-weight: 900; }
     .brand-academy { font-weight: 500; }
+
+    /* Name Input Group Style */
+    .name-input-group {
+      margin: 10px 0 14px 0;
+      text-align: center;
+    }
+    .name-input-group label {
+      display: block;
+      width: 90%;
+      margin: 0 auto 6px auto;
+      font-size: 14px;
+      font-weight: bold;
+      color: #2d3436;
+      text-align: left; /* 標籤靠左對齊 */
+    }
+    .name-input-group input {
+      width: 90%;
+      padding: 10px 14px;
+      font-size: 15px;
+      border: 2px solid #74b9ff;
+      border-radius: 12px;
+      outline: none;
+      font-weight: bold;
+      color: #2d3436;
+      text-align: left; /* 輸入框文字靠左對齊 */
+      transition: border-color 0.2s;
+    }
+    .name-input-group input:focus {
+      border-color: #0984e3;
+      box-shadow: 0 0 6px rgba(9, 132, 227, 0.2);
+    }
 
     /* BGM Toggle Switch Style */
     .bgm-toggle-container {
@@ -107,34 +140,6 @@
     }
 
     .story-container { padding: 5px; }
-
-    /* Name Input Group */
-    .name-input-group {
-      margin: 8px 0 10px 0;
-      text-align: left;
-    }
-    .name-input-group label {
-      display: block;
-      font-size: 13px;
-      font-weight: bold;
-      color: #2d3436;
-      margin-bottom: 4px;
-    }
-    .name-input-group input {
-      width: 100%;
-      padding: 8px 12px;
-      font-size: 15px;
-      border: 2px solid #74b9ff;
-      border-radius: 10px;
-      outline: none;
-      font-weight: bold;
-      color: #2d3436;
-      transition: border-color 0.2s;
-    }
-    .name-input-group input:focus {
-      border-color: #0984e3;
-      box-shadow: 0 0 6px rgba(9, 132, 227, 0.2);
-    }
 
     .btn-group-row {
       display: flex;
@@ -271,7 +276,6 @@
       transform-origin: center;
     }
 
-    /* 👿 紫色小惡魔樣式與動畫 */
     .demon-box {
       font-size: 28px;
       margin-right: 0px;
@@ -284,7 +288,6 @@
       filter: drop-shadow(0 0 6px rgba(142, 68, 173, 0.6));
     }
 
-    /* 💃 舞蹈動畫 */
     .demon-dancing {
       animation: danceAnim 0.5s infinite alternate ease-in-out;
     }
@@ -293,7 +296,6 @@
       100% { transform: translateY(-8px) rotate(10deg) scale(1.05); }
     }
 
-    /* 💥 答對爆炸動畫 */
     .demon-explode {
       animation: explodeAnim 0.4s forwards ease-out;
     }
@@ -303,7 +305,6 @@
       100% { transform: scale(2.2) rotate(360deg); opacity: 0; }
     }
 
-    /* 😈 答錯搖擺動畫 */
     .demon-laugh {
       animation: laughAnim 0.12s infinite alternate ease-in-out;
     }
@@ -457,7 +458,6 @@
     .rank-2 { color: #636e72; font-weight: bold; font-size: 13px; }
     .rank-3 { color: #d63031; font-weight: bold; font-size: 13px; }
 
-    /* ✨ 排行榜紀錄閃爍動畫 */
     .highlight-row {
       animation: highlightBlink 0.8s infinite alternate ease-in-out;
       font-weight: bold;
@@ -485,7 +485,6 @@
     <div class="btn-group-row">
       <button class="story-btn" onclick="goToStoryPage(2)">Next ➔</button>
 
-      <!-- 🎵 音樂開關 (預設取消 checked，保持關閉) -->
       <div class="bgm-toggle-container">
         <span>🎵</span>
         <label class="switch">
@@ -498,7 +497,7 @@
     </div>
   </div>
 
-  <!-- 📖 Story Page 2 (Hero Name Input) -->
+  <!-- 📖 Story Page 2 (挑戰者姓名輸入頁) -->
   <div id="story-page-2" class="story-container" style="display: none;">
     <div class="brand-header">
       <span class="brand-luya">LUYA</span> <span class="brand-academy">Academy</span>
@@ -507,13 +506,12 @@
       <img src="99_02.jpg" alt="Second Screen">
     </div>
 
-    <!-- Hero Name Input -->
     <div class="name-input-group">
-      <label for="player-name">Enter Hero Name:</label>
-      <input type="text" id="player-name" placeholder="e.g., Brave Knight" maxlength="20" value="Brave Knight">
+      <label for="hero-name-input">Hero English Name:</label>
+      <input type="text" id="hero-name-input" placeholder="e.g., Peter Pan (Full English Name)" autocomplete="off">
     </div>
 
-    <button class="story-btn" style="width:100%;" onclick="startGame()">Start Quest ⚔️</button>
+    <button class="story-btn" style="width:100%;" onclick="handleChallengeClick()">Start Quest ⚔️</button>
   </div>
 
   <!-- 🎮 Main Game Screen -->
@@ -542,14 +540,12 @@
       <div>Total Score: <span id="current-total-score" style="color:#d63031; font-weight:bold;">0</span></div>
     </div>
 
-    <!-- Countdown Timer Bar -->
     <div class="timer-container" id="timer-container">
       <div class="timer-bar" id="timer-bar"></div>
     </div>
 
     <div class="question-box" id="question-box"></div>
 
-    <!-- Keypad -->
     <div class="keypad" id="keypad">
       <button class="btn-key" onclick="appendNum('1')">1</button>
       <button class="btn-key" onclick="appendNum('2')">2</button>
@@ -567,7 +563,6 @@
 
     <div class="feedback" id="feedback"></div>
 
-    <!-- Action Buttons after Final Score -->
     <div class="action-btn-group" id="end-action-btns" style="display:none;">
       <button class="story-btn" id="next-result-btn" onclick="goToReviewScreen()">Next ➔</button>
       <button class="leaderboard-view-btn" onclick="showLeaderboard()">🏆 Leaderboard</button>
@@ -613,7 +608,6 @@
         </tr>
       </thead>
       <tbody id="leaderboard-body">
-        <!-- JS generated content -->
       </tbody>
     </table>
 
@@ -639,7 +633,7 @@
 
 </div>
 
-<!-- 🔥 Firebase SDK & Firestore 初始化 Module -->
+<!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import { 
@@ -677,6 +671,8 @@
   const MAX_ERRORS = 3;
   const TIME_LIMIT_SECONDS = 10; 
 
+  let userCredentials = []; 
+  let matchedUser = null; 
   let playerName = "Brave Knight";
   let score = 0;        
   let bonusScore = 0;   
@@ -700,7 +696,62 @@
 
   let audioCtx = null;
   let bgmAudio = null;
-  let isBgmEnabled = false; // ⚡ 音樂預設為關閉 (false)
+  let isBgmEnabled = false;
+
+  // 讀取 Name.xlsx Excel 檔案資料
+  async function loadCredentials() {
+    try {
+      const response = await fetch('Name.xlsx');
+      if (!response.ok) throw new Error("Excel file fetch failed");
+      const arrayBuffer = await response.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      userCredentials = XLSX.utils.sheet_to_json(worksheet);
+      console.log("Excel資料載入成功：", userCredentials);
+    } catch (err) {
+      console.error("無法讀取 Name.xlsx 檔案：", err);
+    }
+  }
+
+  // 頁面載入時預先載入 Excel 與播放預設音樂
+  window.addEventListener('DOMContentLoaded', () => {
+    loadCredentials();
+    playBgm('01.mp3');
+  });
+
+  // 按下「Start Quest ⚔️」按鈕時：比對英文姓名（忽略大小寫與連續空格），一致即可進入遊戲
+  async function handleChallengeClick() {
+    const inputEl = document.getElementById('hero-name-input');
+    // 去除前後與中間多餘空格，並轉為小寫
+    const nameInput = inputEl.value.trim().replace(/\s+/g, ' ');
+
+    if (!nameInput) return;
+
+    if (userCredentials.length === 0) {
+      await loadCredentials();
+    }
+
+    if (userCredentials.length === 0) return;
+
+    // 不區分大小寫比對姓名 (比對 Name / Account / Username / 英文姓名 / 姓名)
+    matchedUser = userCredentials.find(row => {
+      const acc = String(row['Name'] || row['Account'] || row['Username'] || row['英文姓名'] || row['姓名'] || '').trim().replace(/\s+/g, ' ');
+      return acc.toLowerCase() === nameInput.toLowerCase();
+    });
+
+    // 若姓名不符，清空輸入框並在輸入框中顯示 Non-LUYA students
+    if (!matchedUser) {
+      inputEl.value = '';
+      inputEl.placeholder = 'Non-LUYA students';
+      return;
+    }
+
+    // 姓名配對成功，直接進入遊戲
+    playerName = String(matchedUser['Name'] || matchedUser['Account'] || matchedUser['英文姓名'] || nameInput).trim();
+    document.getElementById('display-hero-name').innerText = playerName;
+    startGame();
+  }
 
   function toggleBgm(enabled) {
     isBgmEnabled = enabled;
@@ -790,45 +841,8 @@
     }
   }
 
-  async function clearLeaderboard() {
-    if (!confirm("⚠️ 確定要清空全網所有排行榜資料嗎？此操作無法復原！")) return;
-
-    try {
-      if (!window.db || !window.fsMethods) {
-        alert("資料庫連線失敗，無法進行清空操作。");
-        return;
-      }
-
-      const { collection, getDocs, deleteDoc, doc } = window.fsMethods;
-      const querySnapshot = await getDocs(collection(window.db, "leaderboard"));
-
-      const deletePromises = [];
-      querySnapshot.forEach((docSnapshot) => {
-        deletePromises.push(deleteDoc(doc(window.db, "leaderboard", docSnapshot.id)));
-      });
-
-      await Promise.all(deletePromises);
-      alert("⚡ 排行榜已成功清空！");
-
-      document.getElementById('player-name').value = "Brave Knight";
-    } catch (e) {
-      console.error("清空排行榜失敗：", e);
-      alert("清空失敗，請檢查權限設定或網路連線。");
-    }
-  }
-
   function startGame() {
     stopBgm(); 
-
-    const inputVal = document.getElementById('player-name').value.trim();
-
-    if (inputVal === "administrator") {
-      clearLeaderboard();
-      return;
-    }
-
-    playerName = inputVal !== "" ? inputVal : "Brave Knight";
-    document.getElementById('display-hero-name').innerText = playerName;
 
     document.getElementById('story-page-1').style.display = 'none';
     document.getElementById('story-page-2').style.display = 'none';
@@ -1395,6 +1409,11 @@
   }
 
   document.addEventListener('keydown', (e) => {
+    // 若在故事頁 2 輸入框，按下 Enter 觸發挑戰
+    if (document.getElementById('story-page-2').style.display !== 'none' && document.activeElement.id === 'hero-name-input' && e.key === 'Enter') {
+      handleChallengeClick();
+      return;
+    }
     if (isAnswered || document.getElementById('game-screen').style.display === 'none') return;
     if (e.key >= '0' && e.key <= '9') appendNum(e.key);
     else if (e.key === 'Backspace') backspace();
